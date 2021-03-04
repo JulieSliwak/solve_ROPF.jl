@@ -2,7 +2,7 @@ include(joinpath("D:\\repo", "ComplexOPF.jl","src", "PowSysMod_body.jl"))
 include("SDP_decomposition_functions.jl")
 include("solve_SDP.jl")
 include("solve_minlp.jl")
-include("B&BandB_maxk_fixingsome1and0.jl")
+include("B&B_maxk_fixingsome1and0.jl")
 
 struct ROPF_infos
     instance_name::String
@@ -24,7 +24,7 @@ end
 
 function construct_dat_file_ROPF(instance_name, matpower_instance_path, output_path)
     typeofinput = MatpowerRTEROPFSimpleInput
-    OPFpbs = load_OPFproblems(typeofinput, matpower_instance_path, flag)
+    OPFpbs = load_OPFproblems(typeofinput, matpower_instance_path)
     # Bulding optimization problem
     pb_global = build_globalpb!(OPFpbs)
     pb_global_real = pb_cplx2real(pb_global)
@@ -35,8 +35,8 @@ end
 
 function generate_clique_decomposition(instance_name, matpower_instance_path, output_decomposition_path)
     sp = read_sparsity_pattern(matpower_instance_path)
-    nb_nodes[instance] = size(sp,1)
-    nb_edges[instance] = (nnz(sp) - size(sp,1))/2
+    nb_nodes = size(sp,1)
+    nb_edges = (nnz(sp) - size(sp,1))/2
     L, order, nb_added_edges = chordal_ext_cholesky(sp)
     H = construct_graph_from_matrix(L)
     cliques_dict = cliques_max(H,order)
@@ -77,8 +77,6 @@ function solve1(ROPF)
         #solve MINLP with Knitro
         UB_minus = solve_minlp(ROPF, "minus", [], Dict{String,Float64}())
     end
-    println("Increase in generation : UB=$UB_plus ; LB = $LB_plus \n")
-    println("Decrease in generation : UB=$UB_minus ; LB = $LB_minus \n")
     return UB_plus, LB_plus, UB_minus, LB_minus
 end
 
@@ -92,15 +90,13 @@ function solve2(ROPF, max_time)
     end
     if (stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT)
         #B&B algo
-        BB_parameters = BB_infos("deepfirst", "1", 0.9, 10^(-4))
+        BB_parameters = BB_infos("deepfirst", "1", 0.9, 0.0001)
         (UB_plus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "plus", BB_parameters, max_time)
     end
     if (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         #B&B algo
-        BB_parameters = BB_infos("deepfirst", "1", 0.9, 10^(-4))
+        BB_parameters = BB_infos("deepfirst", "1", 0.9, 0.0001)
         (UB_minus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "minus", BB_parameters, max_time)
     end
-    println("Increase in generation : UB=$UB_plus ; LB = $LB_plus \n")
-    println("Decrease in generation : UB=$UB_minus ; LB = $LB_minus \n")
     return UB_plus, LB_plus, UB_minus, LB_minus
 end

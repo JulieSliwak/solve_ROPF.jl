@@ -67,7 +67,7 @@ function solve_minlp(ROPF, flag, fixing, index_var)
         @warn("AMPL/Knitro failed, returning.")
     end
 
-    mv("knitro_solution.csv", joinpath(pwd(), "knitro_solution.csv"), force=true)
+    mv("knitro_solution.csv", joinpath(root, "knitro_solution.csv"), force=true)
     # mv("knitro_solution.csv", "D:\\repo\\ROPF.jl\\knitro_optimal_solutions\\$(instance).csv", force=true)
     rm("minlp_instance.dat")
     rm("Pinput.dat")

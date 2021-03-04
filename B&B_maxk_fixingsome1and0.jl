@@ -25,7 +25,7 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
     start_time = time()
     elapsed_time = 0.0
     #SDP
-    instance_dat_file_path = output_instance_path
+    instance_dat_file_path = joinpath(output_instance_path, "$instance.dat")
     Pinput_csv_file = joinpath(generation_files_path,"$(instance)_$(generation).csv")
     outsolutionpath = joinpath("Mosek_solutions")
     solution_file = joinpath(outsolutionpath, "$(instance)_$(generation)_$(flag).dat")
@@ -38,9 +38,8 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
         var = Bin_var_list[i]
         index_var[var] = i
     end
-    output_file = "BandBmax$(max_var_1)fixingsome1_$(seuil_u)_and0_$(seuil_l)_$(search_strategy)_$(branch_strategy)_$(instance)_$(generation)_$(flag).txt"
+    output_file = "BandB_fixingsome1_$(seuil_u)_and0_$(seuil_l)_$(search_strategy)_$(branch_strategy)_$(instance)_$(generation)_$(flag).txt"
     f = open(joinpath("BandB_runs", output_file), "w")
-    write(f, "max_var_1 = $max_var_1 \n")
     #B&B
     mosek_pt = readdlm(joinpath(outsolutionpath, "$(instance)_$(generation)_$(flag).dat"))
     fixing_from_SDP = -ones(nb_bin)

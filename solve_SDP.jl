@@ -80,6 +80,30 @@ function read_dat_file(dat_file_path)
     return λ, Sgen_var_list, SDP_var_list, Bin_var_list, dict_quad_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, dict_linear_ctr
 end
 
+function read_blocks(DATA_PATH, FORMULATION, INSTANCE_NAME)
+    if FORMULATION == "NO_BLOCKS"
+        BLOCKS=readdlm(joinpath(DATA_PATH,"blocks_cholesky", INSTANCE_NAME*"_sdp_blocks.txt"))
+        VAR = BLOCKS[:,2]
+        B1 = ["B1" for i=1:size(BLOCKS,1)]
+        BLOCKS = [B1 VAR]
+        CLIQUE_TREE = []
+    else
+        BLOCKS=readdlm(joinpath(DATA_PATH, "blocks_$FORMULATION",INSTANCE_NAME*"_sdp_blocks.txt"))
+        CLIQUE_TREE = readdlm(joinpath(DATA_PATH, "cliquetree_$FORMULATION",INSTANCE_NAME*"_sdp_cliquetree.txt"))
+    end
+    cliques_dict = Dict{String,Array{String}}()
+    for i in 1:size(BLOCKS,1)
+        block = BLOCKS[i,1]
+        var = BLOCKS[i,2]
+            if !haskey(cliques_dict, block)
+                cliques_dict[block] = [var]
+            else
+                push!(cliques_dict[block], var)
+            end
+    end
+    return cliques_dict, CLIQUE_TREE
+end
+
 function construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
   #complex blocks
   # f = open("sol_C.csv", "w")
@@ -436,11 +460,9 @@ function solve_SDP(ROPF, flag)
     isdir(outpath) || mkpath(outpath)
     outlog = open(joinpath(outpath,"$(INSTANCE_NAME)_$(generation)_$(flag)_$(FORMULATION).log"), "w")
     redirect_stdout(outlog)
-    instance_dat_file_path = output_instance_path
+    instance_dat_file_path = joinpath(output_instance_path, "$(INSTANCE_NAME).dat")
     Pinput_csv_file = joinpath(generation_files_path,"$(INSTANCE_NAME)_$(generation).csv")
-    outsolutionpath = joinpath("Mosek_solutions")
-    isdir(outsolutionpath) || mkpath(outsolutionpath)
-    solution_file = joinpath(outsolutionpath, "$(INSTANCE_NAME)_$(generation)_$(flag).dat")
+    solution_file = joinpath("$(INSTANCE_NAME)_$(generation)_$(flag).dat")
     λ, Sgen_var_list, SDP_var_list, Bin_var_list, dict_quad_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr,
      dict_MONO, dict_linear_ctr = read_dat_file(instance_dat_file_path)
     cliques_dict, CLIQUE_TREE = read_blocks(output_decomposition_path, FORMULATION, INSTANCE_NAME)
