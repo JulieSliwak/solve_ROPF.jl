@@ -58,7 +58,7 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
         end
     end
     write(f, "NB binary variables : $nb_bin_unfixed \n")
-    println(nb_bin_unfixed)
+    # println(nb_bin_unfixed)
     best_ub = solve_minlp(ROPF, flag, fixing_from_SDP, index_var)
     println(best_ub)
     node0 = node(fixing_from_SDP, -Inf)
