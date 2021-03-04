@@ -1,5 +1,4 @@
-include("read_dat_file.jl")
-include("construct_SDP_from_Pinputcsv_BB.jl")
+include("solve_SDP.jl")
 include("solve_minlp.jl")
 
 struct node
@@ -13,7 +12,15 @@ struct open_node
 end
 
 
-function BandB_maxk_fixingsome1(data_path, formulation, instance, generation, flag, search_strategy, branch_strategy, max_var_1, max_time, seuil)
+function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
+    output_decompostion_path = ROPF.output_decomposition_path
+    formulation = ROPF.decomposition
+    instance = ROPF.instance_name
+    generation = ROPF.generation
+    search_strategy = BB_param.search_strategy
+    branch_strategy = BB_param.branch_strategy
+    seuil_u = BB_param.seuil_u
+    seuil_l = BB_param.seuil_l
     #initilization
     start_time = time()
     elapsed_time = 0.0
@@ -43,17 +50,17 @@ function BandB_maxk_fixingsome1(data_path, formulation, instance, generation, fl
     for i in 1:nb_bin
         tuple = shunt_values[i]
         varname = tuple[2]
-        if tuple[1] > seuil
+        if tuple[1] > seuil_u
             fixing_from_SDP[index_var[varname]] = 1
             nb_bin_unfixed -= 1
-        elseif tuple[1] < 10^(-4)
+        elseif tuple[1] < seuil_l
             fixing_from_SDP[index_var[varname]] = 0
             nb_bin_unfixed -= 1
         end
     end
     write(f, "NB binary variables : $nb_bin_unfixed \n")
     println(nb_bin_unfixed)
-    best_ub = solve_minlp(instance, flag, generation, fixing_from_SDP, index_var)
+    best_ub = solve_minlp(ROPF, flag, fixing_from_SDP, index_var)
     println(best_ub)
     node0 = node(fixing_from_SDP, -Inf)
     node_list = Set([node0])
@@ -88,12 +95,12 @@ function BandB_maxk_fixingsome1(data_path, formulation, instance, generation, fl
         delete!(node_list, next_node)
         dict_variables_to_fix = Dict(var => fixing[index_var[var]] for var in Bin_var_list)
         value_bins, value_SDP_var, opt_value, primal_status = construct_SDP(cliques_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
-           dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, dict_variables_to_fix, max_var_1)
+           dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, dict_variables_to_fix, "")
         if opt_value < (1-10^(-4))*best_ub && (primal_status == MOI.FEASIBLE_POINT || primal_status == MOI.NEARLY_FEASIBLE_POINT)
             if maximum(min(1-b, b) for (name,b) in value_bins) <= 10^(-6)
                 #STOP: no nodes after
                 #NOTE : vérifier car la relaxation SDP ne donne pas forcément une solution réalisable pour le QCQP non convexe
-                ub = solve_minlp(instance, flag, generation, fixing, index_var)
+                ub = solve_minlp(ROPF, flag, fixing, index_var)
                 f = open(joinpath("BandB_runs", output_file), "a")
                 if (ub-opt_value)/ub > 10^(-4) #gap
                     write(f, "OPEN NODE ")

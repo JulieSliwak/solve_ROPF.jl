@@ -296,50 +296,38 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
     println("Objective value : ", JuMP.objective_value(m))
     println("Status : ", JuMP.termination_status(m))
 
-    X_Re, X_Im = construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
+    if solution_file != ""
+        X_Re, X_Im = construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
+          f = open(joinpath("Mosek_solutions", solution_file), "w")
+          write(f,"#Variable    Value \n")
+          for (varname, tuple) in uvar
+              ξ = tuple[1]
+              abs2_Vkk = tuple[2]
+              u = JuMP.value(ξ)/JuMP.value(abs2_Vkk)
+              write(f, "$varname    $u \n")
+          end
+          for (var, val_Re) in X_Re
+            value_Re = (JuMP.value(val_Re)) #value_Re = (JuMP.value(X_Re[var]))
+            value_Im = (JuMP.value(X_Im[var]))
+            write(f, "$(var*"_Re")    $value_Re   \n")
+            write(f, "$(var*"_Im")    $value_Im   \n")
+          end
+          close(f)
+      end
 
-  f = open(joinpath("Mosek_solutions", solution_file), "w")
-  write(f,"#Variable    Value \n")
-  #
-  for (varname, tuple) in uvar
-      ξ = tuple[1]
-      abs2_Vkk = tuple[2]
-      u = JuMP.value(ξ)/JuMP.value(abs2_Vkk)
-      #println("$varname : $u")
-      write(f, "$varname    $u \n")
-  end
-  # for (varname, value) in X
-  #   write(f, "$varname    $value \n")
-  # end
-  for (var, val_Re) in X_Re
-    value_Re = (JuMP.value(val_Re)) #value_Re = (JuMP.value(X_Re[var]))
-    value_Im = (JuMP.value(X_Im[var]))
-    write(f, "$(var*"_Re")    $value_Re   \n")
-    write(f, "$(var*"_Im")    $value_Im   \n")
-  end
-  close(f)
-
-  # u_values = [(JuMP.value(tuple[1])/JuMP.value(tuple[2]), varname) for (varname,tuple) in uvar]
-  # sort!(u_values, rev=true)
-  # f = open(joinpath("fixing4var", solution_file), "w")
-  # for i in 1:length(u_values)
-  #   tuple = u_values[i]
-  #   varname = tuple[2]
-  #   if i<=4 && tuple[1] > 0.5
-  #     value = 1
-  #   else
-  #     value = 0
-  #   end
-  #   write(f, "$varname    $value \n")
-  # end
-  #
-  # close(f)
   return JuMP.objective_value(m), primal_status(m)
 
 end
 
 
-function solve_SDP(output_instance_path, output_decomposition_path, generation_files_path, FORMULATION, INSTANCE_NAME, generation, flag)
+
+function solve_SDP(ROPF, flag)
+    output_instance_path = ROPF.output_instance_path
+    output_decomposition_path = ROPF.output_decomposition_path
+    generation_files_path = ROPF.generation_files_path
+    FORMULATION = ROPF.decomposition
+    INSTANCE_NAME = ROPF.instance_name
+    generation = ROPF.generation
     originalSTDOUT = stdout
     outpath = joinpath("Mosek_runs")
     isdir(outpath) || mkpath(outpath)

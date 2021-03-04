@@ -4,18 +4,25 @@ include("solve_SDP.jl")
 include("run_ampl_minlp.jl")
 include("B&BandB_maxk_fixingsome1.jl")
 
-struct ROPF_instance
+struct ROPF_infos
     instance_name::String
     matpower_instance_path::String
     output_instance_path::String
-    formulation::String
+    decomposition::String
     output_decomposition_path::String
     generation::String
     generation_files_path::String
 end
 
+struct BB_infos
+    search_strategy::String
+    branch_strategy::String
+    seuil_u::Float64
+    seuil_l::Float64
+end
 
-function construct_ROPF_instance(instance_name, matpower_instance_path, output_path)
+
+function construct_dat_file_ROPF(instance_name, matpower_instance_path, output_path)
     typeofinput = MatpowerRTEROPFSimpleInput
     OPFpbs = load_OPFproblems(typeofinput, matpower_instance_path, flag)
     # Bulding optimization problem
@@ -55,27 +62,20 @@ function generate_clique_decomposition(instance_name, matpower_instance_path, ou
 end
 
 
-function solve1(instance, output_instance_path, output_decomposition_path, generation_files_path, generation)
-    formulation = "cholesky"
-    flag = "plus"
-    LB_plus, stat_plus = (output_instance_path, output_decomposition_path, generation_files_path, formulation, instance, generation, flag)
-    flag = "minus"
-    LB_minus, stat_minus = (output_instance_path, output_decomposition_path, generation_files_path, formulation, instance, generation, flag)
+function solve1(ROPF)
+    LB_plus, stat_plus = solve_SDP(ROPF, "plus")
+    LB_minus, stat_minus = solve_SDP(ROPF, "minus")
     UB_minus = UB_plus = ""
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         println("$instance $generation : SDP relaxation probably infeasible ")
     end
     if (stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT)
         #solve MINLP with Knitro
-        src_ampl_path = joinpath(pwd(), "src_ampl")
-        flag = "plus"
-        UB_plus = run_knitro(output_instance_path, instance, src_ampl_path, flag, generation)
+        UB_plus = solve_minlp(ROPF, "plus", [], Dict{String,Float64}())
     end
     if (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         #solve MINLP with Knitro
-        src_ampl_path = joinpath(pwd(), "src_ampl")
-        flag = "minus"
-        UB_minus = run_knitro(output_instance_path, instance, src_ampl_path, flag, generation)
+        UB_minus = solve_minlp(ROPF, "minus", [], Dict{String,Float64}())
     end
     println("Increase in generation : UB=$UB_plus ; LB = $LB_plus \n")
     println("Decrease in generation : UB=$UB_minus ; LB = $LB_minus \n")
@@ -83,37 +83,22 @@ function solve1(instance, output_instance_path, output_decomposition_path, gener
 end
 
 
-function solve2(instance, output_instance_path, output_decomposition_path, generation, max_time)
-    formulation = "cholesky"
-    flag = "plus"
-    LB_plus, stat_plus = (output_instance_path, output_decomposition_path, generation_files_path, formulation, instance, generation, flag)
-    flag = "minus"
-    LB_minus, stat_minus = (output_instance_path, output_decomposition_path, generation_files_path, formulation, instance, generation, flag)
+function solve2(ROPF, max_time)
+    LB_plus, stat_plus = solve_SDP(ROPF, "plus")
+    LB_minus, stat_minus = solve_SDP(ROPF, "minus")
     UB_minus = UB_plus = ""
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         println("$instance $generation : SDP relaxation probably infeasible ")
     end
     if (stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT)
-        #solve MINLP with Knitro
-        src_ampl_path = joinpath(pwd(), "src_ampl")
-        flag = "plus"
-        search_strategy = "deepfirst"
-        branch_strategy = "1"
-        max_var_1 = Inf
-        seuil = 0.9
-        t = @elapsed (UB_plus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1(output_decomposition_path, formulation, instance, generation, flag, search_strategy, branch_strategy, max_var_1, max_time, seuil)
-        println("Time : $t")
+        #B&B algo
+        BB_parameters = BB_infos("deepfirst", "1", 0.9, 10^(-4))
+        (UB_plus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "plus", BB_parameters, max_time)
     end
     if (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
-        #solve MINLP with Knitro
-        src_ampl_path = joinpath(pwd(), "src_ampl")
-        flag = "minus"
-        search_strategy = "deepfirst"
-        branch_strategy = "1"
-        max_var_1 = Inf
-        seuil = 0.9
-        t = @elapsed (UB_minus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1(output_decomposition_path, formulation, instance, generation, flag, search_strategy, branch_strategy, max_var_1, max_time, seuil)
-        println("Time : $t")
+        #B&B algo
+        BB_parameters = BB_infos("deepfirst", "1", 0.9, 10^(-4))
+        (UB_minus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "minus", BB_parameters, max_time)
     end
     println("Increase in generation : UB=$UB_plus ; LB = $LB_plus \n")
     println("Decrease in generation : UB=$UB_minus ; LB = $LB_minus \n")

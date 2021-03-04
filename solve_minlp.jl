@@ -1,13 +1,21 @@
-function run_knitro(pb_path::String, instance::String, src_ampl_path::String, flag::String, generation::String)
+function solve_minlp(ROPF, flag, fixing, index_var)
+    instance = ROPF.instance_name
+    generation = ROPF.generation
     root = pwd()
     # date = Dates.format(now(), "yy_u_dd_HH_MM_SS")
-    outlog = "D:\\repo\\ROPF.jl\\knitro_runs\\Knitro_minlp_$(instance)_$(generation)_$(flag).log"
+    if length(fixing) > 0
+        outlog = joinpath(pwd(), "knitro_runs", "BB_$(instance)_$(generation)_$(flag).log")
+    else
+        outlog = joinpath(pwd(), "knitro_runs", "$(instance)_$(generation)_$(flag).log")
+    end
+    pb_path = ROPF.output_instance_path
+    src_ampl_path = joinpath(pwd(), "src_ampl")
 
     cd(pb_path)
 
     instance_dat_file = "$(instance).dat"
     cp(instance_dat_file, "minlp_instance.dat", force=true)
-    Pinput_lines = readlines("$(instance)_$(generation).csv")
+    Pinput_lines = readlines(joinpath(ROPF.generation_files_path, "$(instance)_$(generation).csv"))
     f = open("Pinput.dat", "w")
     for line in Pinput_lines
         temp = split(line, ';')
@@ -22,8 +30,26 @@ function run_knitro(pb_path::String, instance::String, src_ampl_path::String, fl
     write(f, "lambda_$flag   0.5")
     close(f)
 
-    open("minlp.run", "w") do f
-      println(f, "include $(joinpath(src_ampl_path, "minlp.run"));")
+    f = open("fixing.dat", "w")
+    all_fixing = true
+    for (var, index) in index_var
+        value = fixing[index]
+        if value != -1
+            write(f, "$var    $value \n")
+        else
+            all_fixing = false
+        end
+    end
+    close(f)
+
+    if all_fixing
+        open("phase3.run", "w") do f
+            println(f, "include $(joinpath(src_ampl_path, "phase3.run"));")
+        end
+    else
+        open("minlp.run", "w") do f
+            println(f, "include $(joinpath(src_ampl_path, "minlp.run"));")
+        end
     end
 
     open("minlp.mod", "w") do f
@@ -31,17 +57,22 @@ function run_knitro(pb_path::String, instance::String, src_ampl_path::String, fl
     end
 
     try
-        run(`cmd /c ampl minlp.run '>' $(outlog)`)
+        if all_fixing
+            run(`cmd /c ampl phase3.run '>' $(outlog)`)
+        else
+            run(`cmd /c ampl minlp.run '>' $(outlog)`)
+        end
         # run(`cmd /c ampl real_minlp.run `)
     catch
         @warn("AMPL/Knitro failed, returning.")
     end
 
-    #mv("knitro_solution.csv", "D:\\repo\\RTE_ROPFu\\knitro_solutions\\$(instance)_$(generation)_$(flag).csv", force=true)
-    # mv("knitro_solution.csv", "D:\\repo\\RTE_ROPFu\\knitro_optimal_solutions\\$(instance).csv", force=true)
+    mv("knitro_solution.csv", joinpath(pwd(), "knitro_solution.csv"), force=true)
+    # mv("knitro_solution.csv", "D:\\repo\\ROPF.jl\\knitro_optimal_solutions\\$(instance).csv", force=true)
     rm("minlp_instance.dat")
     rm("Pinput.dat")
     rm("lambda.dat")
+    rm("fixing.dat")
     cd(root)
     objective_value = 0.0
     status = ""
@@ -67,18 +98,3 @@ function run_knitro(pb_path::String, instance::String, src_ampl_path::String, fl
         return +Inf
     end
 end
-#
-# pb_path = "D:\\repo\\data\\data_ROPF\\RTE_ROPFu"
-# # instances = ["case_ACTIVSg200", "case300","case_ACTIVSg500", "case1354pegase", "case1888rte", "case1951rte", "case_ACTIVSg2000",
-# # "case2383wp", "case2736sp", "case2737sop", "case2746wop", "case2746wp", "case2848rte", "case2868rte",
-# # "case2869pegase", "case3012wp", "case3120sp", "case3375wp" , "case6468rte","case6470rte",
-# # "case6495rte", "case6515rte"#=,  "case9241pegase", "case13659pegase"=#]
-# src_ampl_path = "D:\\repo\\RTE_ROPFu\\src_ampl"
-# # generation = "generation1"
-# # flag = "minus"
-# instances = ["case2383wp"]
-# generation = "generationrandom2"
-# for instance in instances
-#     obj_plus = run_knitro(pb_path, instance, src_ampl_path, flag, generation)
-#     println(obj_plus)
-# end
