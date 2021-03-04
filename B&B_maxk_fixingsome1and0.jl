@@ -38,7 +38,7 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
         var = Bin_var_list[i]
         index_var[var] = i
     end
-    output_file = "BandBmax$(max_var_1)fixingsome1_$(seuil)_and0_$(search_strategy)_$(branch_strategy)_$(instance)_$(generation)_$(flag).txt"
+    output_file = "BandBmax$(max_var_1)fixingsome1_$(seuil_u)_and0_$(seuil_l)_$(search_strategy)_$(branch_strategy)_$(instance)_$(generation)_$(flag).txt"
     f = open(joinpath("BandB_runs", output_file), "w")
     write(f, "max_var_1 = $max_var_1 \n")
     #B&B

@@ -77,9 +77,112 @@ function read_dat_file(dat_file_path)
         end
     end
     # println(dict_bounds_ctr)
-
     return λ, Sgen_var_list, SDP_var_list, Bin_var_list, dict_quad_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, dict_linear_ctr
+end
 
+function construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
+  #complex blocks
+  # f = open("sol_C.csv", "w")
+  eigenvectors_max = Dict{String,Array{Complex{Float64}}}()
+  dict_C_blocks = Dict{String, Array{Complex{Float64}}}()
+  blocks_dict_C = Dict{String, Array{String}}()
+  for (block, list_var) in blocks_dict
+    nb_var_R = length(list_var)
+    nb_var_C = Int(nb_var_R/2)
+    list_var_C = [var[1:end-3] for var in list_var if var[end-1:end]=="Re"]
+    # println(list_var_C)
+    W = Array{Complex{Float64}}(undef, nb_var_C, nb_var_C)
+    for k in 1:nb_var_C
+      var1_C =  list_var_C[k]
+      var1_Re = var1_C*"_Re"
+      var1_Im = var1_C*"_Im"
+      for l in k:nb_var_C
+        var2_C =  list_var_C[l]
+        var2_Re = var2_C*"_Re"
+        var2_Im = var2_C*"_Im"
+        if k==l
+          W[k,l] = JuMP.value(mat_var[(var1_Re,var2_Re)][block]) + JuMP.value(mat_var[(var1_Im,var2_Im)][block])
+        else
+          W[k,l] = JuMP.value(mat_var[(var1_Re,var2_Re)][block]) + JuMP.value(mat_var[(var1_Im,var2_Im)][block])+ im*(JuMP.value(mat_var[(var1_Im,var2_Re)][block])-JuMP.value(mat_var[(var1_Re,var2_Im)][block]))
+          W[l,k] = JuMP.value(mat_var[(var1_Re,var2_Re)][block]) +  JuMP.value(mat_var[(var1_Im,var2_Im)][block])- im*(JuMP.value(mat_var[(var1_Im,var2_Re)][block])-JuMP.value(mat_var[(var1_Re,var2_Im)][block]))
+        end
+      end
+    end
+    dict_C_blocks[block] = W
+    # println(ishermitian(W))
+    # println(dict_C_blocks[block])
+    X_block = dict_C_blocks[block]
+    K = size(X_block, 1)
+    ef = eigen(X_block)
+    ef.values[K:K]       #largest k
+    eigenvectors_max[block] = ef.vectors[:, K:K]
+    # println(eigenvectors_max)
+    # norm_eig = norm(ef.vectors[:, K:K])
+    # println(norm_eig)
+    for i=1:K
+      var = list_var_C[i]
+      value = eigenvectors_max[block][i]
+      # write(f, "$block ; $var ; $value  \n")
+    end
+    blocks_dict_C[block] = list_var_C
+  end
+  list_blocks = [block for block in keys(blocks_dict_C)]
+  NB_BLOCKS = length(list_blocks)
+  sync_pb = Model(with_optimizer(Xpress.Optimizer))
+  @variable(sync_pb, θ[1:NB_BLOCKS], lower_bound=0, upper_bound=2*pi)
+  obj = @expression(sync_pb, 0.0*θ[1]^2)
+  for i in 1:NB_BLOCKS
+    block1 = list_blocks[i]
+    list_var_1 = blocks_dict_C[block1]
+    p1 = eigenvectors_max[block1]
+    for j in (i+1):NB_BLOCKS
+      block2 = list_blocks[j]
+      list_var_2 = blocks_dict_C[block2]
+      p2 = eigenvectors_max[block2]
+      for k in 1:length(list_var_1)
+        var1 = list_var_1[k]
+        for l in 1:length(list_var_2)
+          var2 = list_var_2[l]
+          if var1 == var2
+            add_to_expression!(obj, (angle(p1[k])+θ[i]-angle(p2[l])-θ[j])^2)
+          end
+        end
+      end
+    end
+  end
+  @objective(sync_pb, Min, obj)
+  optimize!(sync_pb)
+  findX = Model(with_optimizer(Xpress.Optimizer))
+  X_Re = Dict{String, VariableRef}()
+  X_Im = Dict{String, VariableRef}()
+  list_var_C = [var[1:end-3] for var in SDP_var_list if var[end-1:end]=="Re"]
+  # println(list_var_C)
+  for var in list_var_C
+    X_Re[var] = @variable(findX, base_name="X_Re_$var")
+    X_Im[var] = @variable(findX, base_name="X_Im_$var")
+  end
+
+  obj = @expression(findX, 0.0*X_Re["VOLT_1"]^2)
+  # f = open("sol_sync_pb.csv", "w")
+  for i in 1:NB_BLOCKS
+    block = list_blocks[i]
+    θ_block = JuMP.value(θ[i])
+    p = exp(im*θ_block).*eigenvectors_max[block]
+    i = 1
+    for var in blocks_dict_C[block]
+      value = p[i]
+      # write(f, "$block ; $var ; $(abs(eigenvectors_max[block][i])) ; $(angle(eigenvectors_max[block][i])) ; $(abs(value)) ; $(angle(value)) \n")
+      add_to_expression!(obj, (X_Re[var]-real(value))^2+(X_Im[var]-imag(value))^2)
+
+      i +=1
+    end
+  end
+  @objective(findX, Min, obj)
+  optimize!(findX)
+  for var in list_var_C
+    value = (JuMP.value(X_Re[var])) + im*(JuMP.value(X_Im[var]))
+  end
+  return X_Re, X_Im
 end
 
 function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
