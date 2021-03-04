@@ -1,0 +1,95 @@
+reset;
+
+suffix xscalefactor IN;
+suffix cscalefactor IN;
+suffix xfeastol IN;
+suffix cfeastol IN;
+suffix intvarstrategy IN;
+
+param MPEC symbolic := "MPEC";
+
+param OPTIMIZATION_CHOICE symbolic := MPEC;
+
+param FEASTOL := 1e-4;
+param OPTTOL  := 1e-3;
+param FEASTOLABS := 1e-0;
+param OPTTOLABS  := 1e-0;
+param SCALE default 0;
+param scale_from_phase1 default 0;
+param scale_x_with_bounds default 0;
+param scale_x_y default 0;
+
+param scaling default 0; ##0: no scaling, 1: scaling x with bounds, 2: scaling only from phase 1, 3: scaling before and from phase1 */
+
+
+if scaling==0 then {let SCALE:=0;}
+if scaling==1 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 0;
+	let scale_x_with_bounds := 1;
+}
+if scaling==2 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 1;
+	let scale_x_with_bounds := 0;
+}
+if scaling==3 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 1;
+	let scale_x_with_bounds := 1;
+}
+
+
+
+param scale_y_value := 1e+1;
+param scale_x_value := 1e-1;
+
+
+param TIME_BEGIN;
+let TIME_BEGIN := time();
+set FIXED_VARIABLES dimen 1;
+param FIXING{FIXED_VARIABLES} symbolic;
+
+
+model minlp.mod;
+
+data;
+
+param: KEYS: LEFT RIGHT  := include "minlp_instance.dat";
+param: GEN_VAR: Pinput Pmin Pmax := include "Pinput.dat";
+param: LAMBDA_VAR: LAMBDA := include "lambda.dat";
+param: FIXED_VARIABLES : FIXING := include "fixing.dat";
+
+
+model;
+
+#expand CRITERION;
+#expand constraint;
+
+option solver knitroampl;
+option knitro_options ( 'outlev=3 maxit=600 scale='&SCALE&' feastol='&FEASTOL&' opttol='&OPTTOL&' feastolabs='&FEASTOLABS&' opttolabs='&OPTTOLABS&' bar_initpt=2 presolve=0 honorbnds=0');
+
+
+###
+# initialization
+###
+	let{(VAR_TYPE, REAL, name, NONE) in KEYS} x[name] := 1.1;
+	let{(VAR_TYPE, BOOL, name, NONE) in KEYS} y[name] := 0.0;
+	let{varname in GEN_VAR} x[varname] := Pinput[varname];
+	let lambda := 0.5;
+	let{varname in FIXED_VARIABLES} y[varname] := FIXING[varname];
+	fix{varname in FIXED_VARIABLES} y[varname];
+
+
+	option knitro_options ( 'outlev=3 maxit=600 scale='&SCALE&' feastol='&FEASTOL&' opttol='&OPTTOL&' feastolabs='&FEASTOLABS&' opttolabs='&OPTTOLABS&' bar_initpt=2 presolve=0 honorbnds=0');
+	solve;
+
+	display {varname in BINARY_VARIABLES} y[varname];
+	#display{varname in REAL_VARIABLES} x[varname];
+
+	close knitro_solution.csv;
+	for {varname in BINARY_VARIABLES} {
+		printf "%s;%f\n", varname, y[varname] > knitro_solution.csv;}
+	for {i in REAL_VARIABLES} {
+	printf "%s;%f\n", i, x[i] >> knitro_solution.csv;}
+	close knitro_solution.csv;

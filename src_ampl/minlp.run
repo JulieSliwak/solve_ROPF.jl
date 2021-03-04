@@ -1,0 +1,185 @@
+reset;
+
+suffix xscalefactor IN;
+suffix cscalefactor IN;
+suffix xfeastol IN;
+suffix cfeastol IN;
+suffix intvarstrategy IN;
+
+param MPEC symbolic := "MPEC";
+
+param OPTIMIZATION_CHOICE symbolic := MPEC;
+
+param FEASTOL := 1e-4;
+param OPTTOL  := 1e-3;
+param FEASTOLABS := 1e-0;
+param OPTTOLABS  := 1e-0;
+param SCALE default 0;
+param scale_from_phase1 default 0;
+param scale_x_with_bounds default 0;
+param scale_x_y default 0;
+
+param scaling default 0; ##0: no scaling, 1: scaling x with bounds, 2: scaling only from phase 1, 3: scaling before and from phase1 */
+
+
+if scaling==0 then {let SCALE:=0;}
+if scaling==1 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 0;
+	let scale_x_with_bounds := 1;
+}
+if scaling==2 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 1;
+	let scale_x_with_bounds := 0;
+}
+if scaling==3 then {
+	let SCALE:=2;
+	let scale_from_phase1 := 1;
+	let scale_x_with_bounds := 1;
+}
+
+
+
+param scale_y_value := 1e+1;
+param scale_x_value := 1e-1;
+
+
+
+display scaling;
+display scale_from_phase1;
+display scale_x_with_bounds;
+display scale_x_y;
+
+param TIME_BEGIN;
+let TIME_BEGIN := time();
+
+
+model minlp.mod;
+
+data;
+
+param: KEYS: LEFT RIGHT  := include "minlp_instance.dat";
+param: GEN_VAR: Pinput Pmin Pmax := include "Pinput.dat";
+param: LAMBDA_VAR: LAMBDA := include "lambda.dat";
+
+
+model;
+
+#expand CRITERION;
+#expand constraint;
+#expand gen_active_constraint;
+#expand lambda_bounds;
+
+option solver knitroampl;
+option knitro_options ( 'outlev=3 maxit=600 scale='&SCALE&' feastol='&FEASTOL&' opttol='&OPTTOL&' feastolabs='&FEASTOLABS&' opttolabs='&OPTTOLABS&' bar_initpt=2 presolve=0 honorbnds=0');
+
+
+###
+# initialization
+###
+	let{(VAR_TYPE, REAL, name, NONE) in KEYS} x[name] := 1.1;
+	let{(VAR_TYPE, BOOL, name, NONE) in KEYS} y[name] := 0.0;
+	let{varname in GEN_VAR} x[varname] := Pinput[varname];
+	let lambda := 0.5;
+	#let {var in GEN_VAR} lambda[var] := 0.5;
+
+if scale_x_y == 1 then {
+	display scale_x_value;
+	display scale_y_value;
+	let{varname in BINARY_VARIABLES} y[varname].xscalefactor   := scale_y_value;
+	let{(VAR_TYPE, REAL, name, NONE) in KEYS} x[name].xscalefactor := scale_x_value ;
+}
+
+if scale_x_with_bounds == 1 then {
+	option presolve 10;
+		#display{i in REAL_VARIABLES: x[i].lb2 != -Infinity and x[i].ub2 != Infinity}(x[i].lb2, x[i].ub2);
+	let{i in REAL_VARIABLES: x[i].lb2 != -Infinity and x[i].ub2 != Infinity} x[i].xscalefactor := (x[i].ub2-x[i].lb2);
+}
+option presolve 0;
+
+
+
+#define KTR_PARAM_MIP_INTVAR_STRATEGY 2030
+# define KTR_MIP_INTVAR_STRATEGY_NONE 0
+# define KTR_MIP_INTVAR_STRATEGY_RELAX 1
+# define KTR_MIP_INTVAR_STRATEGY_MPEC 2
+if OPTIMIZATION_CHOICE == MPEC then {
+	# first phase relaxation binary constraints
+	let{varname in BINARY_VARIABLES} y[varname].intvarstrategy := 1;
+	option knitro_options;
+	solve;
+
+
+if scale_from_phase1 == 1 then {
+		let{i in 1.._ncons} _con[i].cscalefactor := if abs(_con[i])>1e-5 then 1/abs(_con[i]) else 1;
+		#let{i in 1.._nvars} _var[i].xscalefactor := if abs(_var[i])>1e-5 then abs(_var[i]) else 1;
+
+		let{(VAR_TYPE, REAL, name, NONE) in KEYS} x[name].xscalefactor := if abs(x[name])>1e-5 then abs(x[name]) else 1;
+	}
+
+
+	#printf{i in 1.._ncons: _con[i].slack / max(1, abs(_con[i].body))<-1e-6}"violation on %50s : %10.6E, %10.6E\n", _conname [i], _con[i].slack, _con[i].body;
+
+	option presolve 0;
+	option knitro_options ('outlev=3 maxit=600 scale='&SCALE&' feastol='&FEASTOL&' opttol='&OPTTOL&' feastolabs='&FEASTOLABS&' opttolabs='&OPTTOLABS&' bar_initpt=2 presolve=0 honorbnds=0');
+
+	printf"Binary variables max dist to 1, phase 1\n";
+	display max{varname in BINARY_VARIABLES}min(
+		y[varname],
+		1-y[varname]
+		);
+
+
+	/* display card(BINARY_VARIABLES);
+	display BINARY_VARIABLES;
+	display y;  */
+
+	#exit;
+
+	# second phase reformulating binary constraints into MPEC and starting from the previous KKT solution
+	let{varname in BINARY_VARIABLES} y[varname].intvarstrategy := 2;
+
+
+	#option presolve 10;
+	#display{i in REAL_VARIABLES: x[i].lb2 != -Infinity and x[i].ub2 != Infinity}(x[i].lb2, x[i].ub2);
+	#let{i in REAL_VARIABLES: x[i].lb2 != -Infinity and x[i].ub2 != Infinity} x[i].xscalefactor := (x[i].ub2-x[i].lb2)*1e-2;
+	option presolve 0;
+
+	option knitro_options;
+	solve;
+
+	option solution_precision 0;
+	option display_precision 0;
+
+	printf"Binary variables max dist to 1, phase 2\n";
+	display max{varname in BINARY_VARIABLES}min(
+		y[varname],
+		1-y[varname]
+		);
+
+	display card(BINARY_VARIABLES);
+	#display BINARY_VARIABLES;
+	#display y;
+	let{varname in BINARY_VARIABLES} y[varname] := if y[varname] > 0.5 then 1 else 0;
+
+	#display{i in 1.._ncons: _con[i].slack<-1e-6}(_conname [i], _con[i].slack);
+	fix{varname in BINARY_VARIABLES} y[varname];
+	option knitro_options ('outlev=3 maxit=600 scale=0 feastol=1e-06 opttol=0.001 feastolabs=1 opttolabs=1 bar_initpt=2 presolve=0 honorbnds=0 bar_initmu=1e-6 bar_slackboundpush=1e-6 bar_murule=1 bar_directinterval=0');
+	#option knitro_options;
+	solve;
+
+	display {varname in BINARY_VARIABLES} y[varname];
+	#display{varname in REAL_VARIABLES} x[varname];
+
+	display lambda;
+
+	close knitro_solution.csv;
+	for {varname in BINARY_VARIABLES} {
+		printf "%s;%f\n", varname, y[varname] > knitro_solution.csv;}
+	for {i in REAL_VARIABLES} {
+	printf "%s;%f\n", i, x[i] >> knitro_solution.csv;}
+	close knitro_solution.csv;
+
+
+};
