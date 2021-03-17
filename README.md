@@ -28,25 +28,32 @@ Si aucune décomposition en cliques maximales n'est connue, une décomposition e
 * `output_decomposition_path` : le chemin du répertoire dans lequel stocker les décompositions par exemple "D:\\repo\\data\\data_sdp"
 La décomposition calculée s'appelle alors "cholesky".
 
-La fonction `solve_SDP(ROPF, flag)` résout le problème `ROPF` qui a une structure `ROPF_infos` soit en version montée du plan de production (si `flag="plus"`) soit en version baisse du plan de production (si `flag="minus"`). Le log est enregistré dans le répertoire "Mosek_runs".
+La fonction `solve_SDP(ROPF, flag)` résout la relaxation SDP du problème `ROPF` qui a une structure `ROPF_infos` soit en version montée du plan de production (si `flag="plus"`) soit en version baisse du plan de production (si `flag="minus"`). Le log est enregistré dans le répertoire "Mosek_runs".
 
 
 ## Encadrement de la valeur optimale
-Solution réalisable calculée en trois étapes avec Knitro
-Borne inférieure donnée par la valeur optimale de la relaxation SDP
+La fonction `UB_plus, LB_plus, UB_minus, LB_minus = solve1(ROPF)` retourne un encadrement de la solution du problème `ROPF` (borne supérieure (UB) et borne inférieure (LB) pour chaque version du problème (baisse ou montée du plan de production)).
 
-`UB_plus, LB_plus, UB_minus, LB_minus = solve1(ROPF)`
+Le problème `ROPF` est traité en deux temps : on étudie la version montée du plan de production (`flag="plus"`) et la version baisse du plan de production (`flag="minus"`).
+
+On commence par calculer une borne inférieure pour chacune des deux versions en résolvant la relaxation SDP.
+
+Si l'une des relaxations SDP est non réalisable, cela implique que le problème est non réalisable donc la borne supérieure retournée est `UB=Inf`. Sinon, une solution réalisable est calculée en trois étapes avec Knitro via AMPL :
+* résolution de la relaxation continue du problème pour déterminer un bon point de départ pour la résolution du problème avec les variables binaires
+* résolution du problème avec les variables binaires en utilisant l'option MPEC de Knitro (contraintes de complémentarité)
+* fixation des variables binaires en les arrondissant puis résolution du problème continu
+
+
 
 ## Algorithme B&B
-Branch-and-Bound basé sur une relaxation SDP
-Fixation de variables binaires au-dessus et en-dessous d'un certain seuil
+La fonction `UB_plus, LB_plus, UB_minus, LB_minus = solve2(ROPF, max_time)` retourne un encadrement potentiellement plus précis de la solution du problème `ROPF` car une procédure de Branch-and-Bound (B&B) est utilisée pour calculer une solution réalisable. Cette procédure
+est basée sur une relaxation SDP et ne concerne que les variables binaires (ce n'est pas un B&B spatial donc pas une méthode exacte). Pour éviter que le B&B ne soit pas trop long, les variables binaires au-dessus et en-dessous d'un certain seuil sont fixées (< 10^(-4) et > 0.9 par défaut) et une limite de temps doit être précisée (`max_time`).
 
-`UB_plus, LB_plus, UB_minus, LB_minus = solve2(ROPF, max_time)`
+
 
 
 ## Packages nécessaires
 * Mosek.jl
-* KNITRO.jl
 * MathProgComplex.jl (code personnel)
 * ComplexOPF.jl (code personnel)
 * LightGraphs.jl
@@ -54,3 +61,5 @@ Fixation de variables binaires au-dessus et en-dessous d'un certain seuil
 * LinearAlgebra.jl
 * SparseArrays.jl
 * SuiteSparse.jl
+
++ AMPL et KNITRO
