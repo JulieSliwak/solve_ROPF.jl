@@ -39,6 +39,7 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
         index_var[var] = i
     end
     output_file = "BandB_fixingsome1_$(seuil_u)_and0_$(seuil_l)_$(search_strategy)_$(branch_strategy)_$(instance)_$(generation)_$(flag).txt"
+    isdir("BandB_runs") || mkpath("BandB_runs")
     f = open(joinpath("BandB_runs", output_file), "w")
     #B&B
     mosek_pt = readdlm(joinpath(outsolutionpath, "$(instance)_$(generation)_$(flag).dat"))

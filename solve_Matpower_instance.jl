@@ -8,7 +8,6 @@ generation = "generation1"
 generation_files_path = "D:\\repo\\data\\data_ROPF\\RTE_ROPFu"
 max_time = 3600 #1 hour
 
-println("print test")
 
 construct_dat_file_ROPF(instance_name, matpower_instance_path, output_instance_path)
 generate_clique_decomposition(instance_name, matpower_instance_path, output_decomposition_path)

@@ -53,6 +53,7 @@ est basée sur une relaxation SDP et ne concerne que les variables binaires (ce 
 
 
 ## Packages nécessaires
+Julia Version 1.0.3
 * Mosek.jl
 * MathProgComplex.jl (code personnel)
 * ComplexOPF.jl (code personnel)
@@ -62,4 +63,4 @@ est basée sur une relaxation SDP et ne concerne que les variables binaires (ce 
 * SparseArrays.jl
 * SuiteSparse.jl
 
-+ AMPL et KNITRO
++ AMPL et KNITRO 

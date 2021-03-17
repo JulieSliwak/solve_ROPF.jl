@@ -3,6 +3,7 @@ function solve_minlp(ROPF, flag, fixing, index_var)
     generation = ROPF.generation
     root = pwd()
     # date = Dates.format(now(), "yy_u_dd_HH_MM_SS")
+    isdir("knitro_runs") || mkpath("knitro_runs")
     if length(fixing) > 0
         outlog = joinpath(pwd(), "knitro_runs", "BB_$(instance)_$(generation)_$(flag).log")
     else

@@ -425,6 +425,7 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
 
     if solution_file != ""
         X_Re, X_Im = construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
+        isdir("Mosek_solutions") || mkpath("Mosek_solutions")
           f = open(joinpath("Mosek_solutions", solution_file), "w")
           write(f,"#Variable    Value \n")
           for (varname, tuple) in uvar
