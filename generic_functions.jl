@@ -65,7 +65,7 @@ end
 function solve1(ROPF)
     LB_plus, stat_plus = solve_SDP(ROPF, "plus")
     LB_minus, stat_minus = solve_SDP(ROPF, "minus")
-    UB_minus = UB_plus = ""
+    UB_minus = UB_plus = Inf
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         println("$instance $generation : SDP relaxation probably infeasible ")
     end
@@ -84,7 +84,7 @@ end
 function solve2(ROPF, max_time)
     LB_plus, stat_plus = solve_SDP(ROPF, "plus")
     LB_minus, stat_minus = solve_SDP(ROPF, "minus")
-    UB_minus = UB_plus = ""
+    UB_minus = UB_plus = Inf
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         println("$instance $generation : SDP relaxation probably infeasible ")
     end
