@@ -210,7 +210,7 @@ function construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
 end
 
 function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
-   dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, solution_file)
+   dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, dict_variables_to_fix, solution_file)
 
    lines = readlines(Pinput_csv_file)
    NB_BLOCKS = length(blocks_dict)
@@ -219,7 +219,7 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
         m = Model(with_optimizer(Mosek.Optimizer, LOG=0))
     else
         m = Model(with_optimizer(Mosek.Optimizer))
-    end    
+    end
     #variables
     λ_and_Sgen_jumpvar = Dict(varname => @variable(m, base_name="$varname") for varname in Sgen_var_list)
     if flag == "plus"
@@ -362,10 +362,29 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
         end
         add_to_expression!(xp[objctrname], sum(value*jumpBinvar[bin_var] for (bin_var,value) in value_binVar))
         for (bin_var, abs2_Vkk) in Vkk_binVar
-          ξ = jumpBinvar[bin_var]
-          name = "ξ_$bin_var"
-          constraints_ref[name] = @constraint(m, ξ - abs2_Vkk <= 0)
-          uvar[bin_var] = (ξ, abs2_Vkk)
+            ξ = jumpBinvar[bin_var]
+            name = "ξ_$bin_var"
+            name_VOLTM_ctr = "_$(bin_var[7:end])_Volt_VOLTM_Re"
+            ub_abs2_Vkk = dict_bounds_ctr[name_VOLTM_ctr]["UB"]
+            lb_abs2_Vkk = dict_bounds_ctr[name_VOLTM_ctr]["LB"]
+            if haskey(dict_variables_to_fix, bin_var)
+              value = dict_variables_to_fix[bin_var]
+              if value == 0
+                constraints_ref[name] = @constraint(m, ξ == 0)
+                @constraint(m, jump_uvar[bin_var] == 0)
+              elseif value ==1
+                constraints_ref[name] = @constraint(m, ξ - abs2_Vkk == 0)
+                @constraint(m, jump_uvar[bin_var] == 1)
+              else
+                #McCormick
+                @constraint(m, ξ - ub_abs2_Vkk*jump_uvar[bin_var] <= 0)
+                @constraint(m, ξ - lb_abs2_Vkk*(jump_uvar[bin_var]-1) - abs2_Vkk <= 0)
+                @constraint(m, ξ - lb_abs2_Vkk*jump_uvar[bin_var] >= 0)
+                @constraint(m, ξ - ub_abs2_Vkk*(jump_uvar[bin_var]-1) - abs2_Vkk >= 0)
+              end
+            end
+            uvar[bin_var] = (ξ, abs2_Vkk)
+          end
         end
     end
 
@@ -483,7 +502,7 @@ function solve_SDP(ROPF, flag)
      dict_MONO, dict_linear_ctr = read_dat_file(instance_dat_file_path)
     cliques_dict, CLIQUE_TREE = read_blocks(output_decomposition_path, FORMULATION, INSTANCE_NAME)
      value_bins, value_SDP_var, obj, statut = construct_SDP(cliques_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
-          dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, solution_file)
+          dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO,  Dict(bin => -1 for bin in Bin_var_list), solution_file)
     close(outlog)
     redirect_stdout(originalSTDOUT)
     return obj, statut
