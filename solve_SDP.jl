@@ -215,8 +215,11 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
    lines = readlines(Pinput_csv_file)
    NB_BLOCKS = length(blocks_dict)
     #initialize
-    # m = Model(with_optimizer(Mosek.Optimizer, LOG=0))
-    m = Model(with_optimizer(Mosek.Optimizer))
+    if solution_file == "" #SDP in B&B
+        m = Model(with_optimizer(Mosek.Optimizer, LOG=0))
+    else
+        m = Model(with_optimizer(Mosek.Optimizer))
+    end    
     #variables
     λ_and_Sgen_jumpvar = Dict(varname => @variable(m, base_name="$varname") for varname in Sgen_var_list)
     if flag == "plus"
@@ -423,6 +426,18 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
     println("Objective value : ", JuMP.objective_value(m))
     println("Status : ", JuMP.termination_status(m))
 
+    value_bins = Dict{String, Float64}()
+    for (varname, tuple) in uvar
+        ξ = tuple[1]
+        abs2_Vkk = tuple[2]
+        u = JuMP.value(ξ)/JuMP.value(abs2_Vkk)
+        value_bins[varname] = u
+    end
+    value_SDP_var = Dict{String, Array{Float64,2}}()
+    for (block, X) in jumpX
+      value_SDP_var[block] = JuMP.value.(X)
+    end
+
     if solution_file != ""
         X_Re, X_Im = construct_approximate_solution(mat_var, blocks_dict, SDP_var_list)
         isdir("Mosek_solutions") || mkpath("Mosek_solutions")
@@ -443,7 +458,7 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
           close(f)
       end
 
-  return JuMP.objective_value(m), primal_status(m)
+  return value_bins, value_SDP_var, JuMP.objective_value(m), primal_status(m)
 
 end
 
@@ -467,7 +482,7 @@ function solve_SDP(ROPF, flag)
     λ, Sgen_var_list, SDP_var_list, Bin_var_list, dict_quad_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr,
      dict_MONO, dict_linear_ctr = read_dat_file(instance_dat_file_path)
     cliques_dict, CLIQUE_TREE = read_blocks(output_decomposition_path, FORMULATION, INSTANCE_NAME)
-     obj, statut = construct_SDP(cliques_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
+     value_bins, value_SDP_var, obj, statut = construct_SDP(cliques_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var_list, SDP_var_list, Bin_var_list,
           dict_quad_ctr, dict_linear_ctr, dict_bounds_ctr, dict_constants_ctr, dict_Bin_ctr, dict_MONO, solution_file)
     close(outlog)
     redirect_stdout(originalSTDOUT)

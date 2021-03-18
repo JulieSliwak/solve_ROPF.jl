@@ -2,7 +2,7 @@ include(joinpath("D:\\repo", "ComplexOPF.jl","src", "PowSysMod_body.jl"))
 include("SDP_decomposition_functions.jl")
 include("solve_SDP.jl")
 include("solve_minlp.jl")
-include("B&B_maxk_fixingsome1and0.jl")
+include("B&B_fixingsome1and0.jl")
 
 struct ROPF_infos
     instance_name::String
