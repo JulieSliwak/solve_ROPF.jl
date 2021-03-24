@@ -13,7 +13,8 @@ end
 
 
 function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
-    output_decompostion_path = ROPF.output_decomposition_path
+    output_instance_path = ROPF.output_instance_path
+    output_decomposition_path = ROPF.output_decomposition_path
     formulation = ROPF.decomposition
     instance = ROPF.instance_name
     generation = ROPF.generation

@@ -42,6 +42,9 @@ function solve_minlp(ROPF, flag, fixing, index_var)
         end
     end
     close(f)
+    if length(fixing) == 0
+        all_fixing = false
+    end
 
     if all_fixing
         open("phase3.run", "w") do f
