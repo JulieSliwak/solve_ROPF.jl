@@ -12,7 +12,7 @@ struct open_node
 end
 
 
-function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
+function BandB_fixingsome1and0(ROPF, flag, BB_param, max_time)
     output_instance_path = ROPF.output_instance_path
     output_decomposition_path = ROPF.output_decomposition_path
     formulation = ROPF.decomposition
@@ -140,12 +140,6 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
                 elseif branch_strategy == "1"
                     var_to_branch = select_1(value_bins)
                 end
-                if length([value for value in fixing if value==1]) == max_var_1
-                    if length([value for value in fixing if value==0]) != (nb_bin-max_var_1)
-                        println("WARNING: fixing with 4 ones but not completed with 0")
-                    end
-                    #STOP
-                else
                     next_fixing0 = copy(fixing)
                     next_fixing0[index_var[var_to_branch]] = 0
                     node_left = node(next_fixing0, opt_value)
@@ -161,8 +155,6 @@ function BandB_maxk_fixingsome1and0(ROPF, flag, BB_param, max_time)
                     end
                     node_right = node(next_fixing1, opt_value)
                     push!(node_list, node_right)
-                end
-
             end
         else
             f = open(joinpath("BandB_runs", output_file), "a")

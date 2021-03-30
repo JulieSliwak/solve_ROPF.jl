@@ -63,4 +63,4 @@ Julia Version 1.0.3
 * SparseArrays.jl
 * SuiteSparse.jl
 
-+ AMPL et KNITRO 
++ AMPL, KNITRO et Xpress

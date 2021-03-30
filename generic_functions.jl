@@ -67,7 +67,7 @@ function solve1(ROPF)
     LB_minus, stat_minus = solve_SDP(ROPF, "minus")
     UB_minus = UB_plus = Inf
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
-        println("$instance $generation : SDP relaxation probably infeasible ")
+        println("$(ROPF.instance_name) $(ROPF.generation) : SDP relaxation probably infeasible ")
     end
     if (stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT)
         #solve MINLP with Knitro
@@ -86,17 +86,17 @@ function solve2(ROPF, max_time)
     LB_minus, stat_minus = solve_SDP(ROPF, "minus")
     UB_minus = UB_plus = Inf
     if !(stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT) && ! (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
-        println("$instance $generation : SDP relaxation probably infeasible ")
+        println("$(ROPF.instance_name) $(ROPF.generation) : SDP relaxation probably infeasible ")
     end
     if (stat_plus == MOI.FEASIBLE_POINT || stat_plus == MOI.NEARLY_FEASIBLE_POINT)
         #B&B algo
         BB_parameters = BB_infos("deepfirst", "1", 0.9, 0.0001)
-        (UB_plus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "plus", BB_parameters, max_time)
+        (UB_plus, nb_nodes, open_nodes) = BandB_fixingsome1and0(ROPF, "plus", BB_parameters, max_time)
     end
     if (stat_minus == MOI.FEASIBLE_POINT || stat_minus == MOI.NEARLY_FEASIBLE_POINT)
         #B&B algo
         BB_parameters = BB_infos("deepfirst", "1", 0.9, 0.0001)
-        (UB_minus, nb_nodes, open_nodes) = BandB_maxk_fixingsome1and0(ROPF, "minus", BB_parameters, max_time)
+        (UB_minus, nb_nodes, open_nodes) = BandB_fixingsome1and0(ROPF, "minus", BB_parameters, max_time)
     end
     return UB_plus, LB_plus, UB_minus, LB_minus
 end

@@ -215,10 +215,9 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
    lines = readlines(Pinput_csv_file)
    NB_BLOCKS = length(blocks_dict)
     #initialize
+    m = Model(with_optimizer(Mosek.Optimizer))
     if solution_file == "" #SDP in B&B
         m = Model(with_optimizer(Mosek.Optimizer, LOG=0))
-    else
-        m = Model(with_optimizer(Mosek.Optimizer))
     end
     #variables
     λ_and_Sgen_jumpvar = Dict(varname => @variable(m, base_name="$varname") for varname in Sgen_var_list)
@@ -256,11 +255,12 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
       end
    end
 
-
-    jumpBinvar = Dict{String, VariableRef}()
+   jump_uvar = Dict{String, VariableRef}()
+   jumpBinvar = Dict{String, VariableRef}()
     uvar = Dict{String, Tuple{VariableRef, JuMP.GenericAffExpr}}()
     for bin_var in Bin_var_list
       jumpBinvar[bin_var] = @variable(m, base_name = "ξ_$bin_var", lower_bound = 0)
+      jump_uvar[bin_var] = @variable(m, base_name = "u_$bin_var", lower_bound = 0, upper_bound=1)
     end
 
     jumpX = Dict{String,Array{VariableRef,2}}()
@@ -386,7 +386,6 @@ function construct_SDP(blocks_dict, CLIQUE_TREE, Pinput_csv_file, flag, Sgen_var
             uvar[bin_var] = (ξ, abs2_Vkk)
           end
         end
-    end
 
     #add objective
     my_timer = @elapsed @objective(m, Min , xp["OBJ"])
