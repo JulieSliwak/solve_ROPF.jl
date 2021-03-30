@@ -146,13 +146,6 @@ function BandB_fixingsome1and0(ROPF, flag, BB_param, max_time)
                     push!(node_list, node_left)
                     next_fixing1 = copy(fixing)
                     next_fixing1[index_var[var_to_branch]] = 1
-                    if length([value for value in next_fixing1 if value==1]) == max_var_1 #4 nodes =1, complete the rest by zero
-                        for i in 1:nb_bin
-                            if next_fixing1[i] != 1
-                                next_fixing1[i] = 0
-                            end
-                        end
-                    end
                     node_right = node(next_fixing1, opt_value)
                     push!(node_list, node_right)
             end
