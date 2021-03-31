@@ -49,6 +49,13 @@ Si l'une des relaxations SDP est non réalisable, cela implique que le problème
 La fonction `UB_plus, LB_plus, UB_minus, LB_minus = solve2(ROPF, max_time)` retourne un encadrement potentiellement plus précis de la solution du problème `ROPF` car une procédure de Branch-and-Bound (B&B) est utilisée pour calculer une solution réalisable. Cette procédure
 est basée sur une relaxation SDP et ne concerne que les variables binaires (ce n'est pas un B&B spatial donc pas une méthode exacte). Pour éviter que le B&B ne soit pas trop long, les variables binaires au-dessus et en-dessous d'un certain seuil sont fixées (< 10^(-4) et > 0.9 par défaut) et une limite de temps doit être précisée (`max_time`).
 
+## Exemple
+Fichier `solve_Matpower_instance.jl`
+* Si l'instance MATPOWER n'a jamais été utilisée avant, utiliser la fonction `construct_dat_file_ROPF(instance_name, matpower_instance_path, output_instance_path)` pour construire l'instance OPF en format .dat (construction du problème en variables complexes à partir du fichier MATPOWER, conversion en problème réel avec la représentation cartésienne, export en fichier texte). Cette étape peut être longue, en particulier la fonction de conversion est lente dès que le problème contient plus d'une centaine de noeuds.
+* Si aucune décomposition en cliques n'est connue, utiliser la fonction `generate_clique_decomposition(instance_name, matpower_instance_path, output_decomposition_path)` pour calculer une décomposition à partir d'une factorisation de Cholesky précédé d'un ordre AMD.
+* Le plan de production active doit avoir été généré précédemment (avec la bonne syntaxe pour le nom des générateurs : e.g. "Gen_Sgen_2_Re" pour le générateur au noeud 2).
+* Une fois que le fichier .dat existe et qu'il existe aussi une décomposition en cliques maximales, utiliser la fonction `UB_plus, LB_plus, UB_minus, LB_minus = solve1(ROPF)` pour obtenir un premier encadrement de la valeur optimale et/ou la fonction `UB_plus, LB_plus, UB_minus, LB_minus = solve2(ROPF, max_time)` pour obtenir un encadrement potentiellement plus précis.
+
 
 
 
@@ -63,4 +70,4 @@ Julia Version 1.0.3
 * SparseArrays.jl
 * SuiteSparse.jl
 
-+ AMPL, KNITRO et Xpress
+* AMPL, KNITRO et Xpress

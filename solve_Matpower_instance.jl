@@ -1,12 +1,12 @@
 include("generic_functions.jl")
 #example
-instance_name = "case1354pegase"
+instance_name = "case14"
 matpower_instance_path = "D:\\repo\\data\\data_Matpower\\matpower\\$(instance_name).m"
 output_instance_path = "D:\\repo\\data\\data_ROPF\\RTE_ROPFu"
 output_decomposition_path = "D:\\repo\\data\\data_sdp"
 generation = "generationrandom1"
 generation_files_path = "D:\\repo\\data\\data_ROPF\\RTE_ROPFu"
-max_time = 120 #1 hour
+max_time = 600 #10 minutes
 
 
 #construct_dat_file_ROPF(instance_name, matpower_instance_path, output_instance_path)
