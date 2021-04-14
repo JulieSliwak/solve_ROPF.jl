@@ -62,7 +62,7 @@ Fichier `solve_Matpower_instance.jl`
 ## Packages nécessaires
 Julia Version 1.0.3
 * Mosek.jl
-* MathProgComplex.jl (code personnel)
+* MathProgComplex.jl (code personnel, branche dev 1.0.3)
 * ComplexOPF.jl (code personnel)
 * LightGraphs.jl
 * MetaGraphs.jl
@@ -71,3 +71,22 @@ Julia Version 1.0.3
 * SuiteSparse.jl
 
 * AMPL, KNITRO et Xpress
+
+
+## Instructions
+Clôner les trois dépôts (idéalement au même endroit dans un répertoire que l'on notera `repo`) :
+* MathProgComplex.jl (Attention : aller sur la branche dev 1.0.3)
+* ComplexOPF.jl
+* solve_ROPF_GENmoves.jl
+
+Modifier la première ligne du fichier `repo\ComplexOPF.jl\src\PowSysMod_body.jl`pour mettre à jour le chemin où se trouve le package MathProgComplex.jl. Si le package se trouve dans le même répertoire que les deux autres, la commande `push!(LOAD_PATH, dirname(pwd()))` peut être utilisée. Sinon spécifier le chemin : `push!(LOAD_PATH, path_to_MathProgComplex.jl_package)`.
+
+Aller dans le répertoire solve_ROPF_GENmoves.jl
+
+Modifier la première ligne du fichier `generic_functions.jl` pour mettre à jour le chemin du fichier `\ComplexOPF.jl\src\PowSysMod_body.jl`. Par exemple : `include(joinpath("..", "ComplexOPF.jl","src", "PowSysMod_body.jl"))` si ComplexOPF.jl et solve_ROPF_GENmoves.jl se trouvent dans le même répertoire
+
+Créer un répertoire avec les instances Matpower à traiter, par exemple `data_matpower`.
+
+Créer un répertoire avec les fichiers csv pour la production, par exemple `data_ROPF`.
+
+Modifier le fichier `solve_Matpower_instance.jl` pour donner le nom de l'instance Matpower à traiter et les chemins des différents fichiers à utiliser.
