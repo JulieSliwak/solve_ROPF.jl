@@ -61,7 +61,7 @@ Fichier `solve_Matpower_instance.jl`
 
 ## Packages nécessaires
 Julia Version 1.0.3
-* Mosek.jl
+* Mosek.jl avec Mosek installé
 * MathProgComplex.jl (code personnel, branche dev 1.0.3)
 * ComplexOPF.jl (code personnel)
 * LightGraphs.jl
@@ -69,6 +69,13 @@ Julia Version 1.0.3
 * LinearAlgebra.jl
 * SparseArrays.jl
 * SuiteSparse.jl
+* DelimitedFiles.jl
+* KNITRO.jl
+* Xpress.jl
+* JuMP.jl
+* DataStructures.jl
+* Printf.jl
+* ArgPars.jl
 
 * AMPL, KNITRO et Xpress
 
