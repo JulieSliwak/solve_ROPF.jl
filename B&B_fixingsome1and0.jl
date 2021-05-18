@@ -66,7 +66,8 @@ function BandB_fixingsome1and0(ROPF, flag, BB_param, max_time)
     node0 = node(fixing_from_SDP, -Inf)
     node_list = Set([node0])
     open_nodes = Set([])
-    mv("knitro_solution.csv", joinpath("BandB_runs", "BEST_solution_$instance.csv"), force=true)
+    isdir("solutions") || mkpath("solutions")
+    mv("knitro_solution.csv", joinpath("solutions", "BB_solution_$(instance)_$(flag).csv"), force=true)
     write(f, "UB : $best_ub \n")
     write(f, "var=$Bin_var_list \n")
     close(f)
@@ -125,7 +126,7 @@ function BandB_fixingsome1and0(ROPF, flag, BB_param, max_time)
                             delete!(open_nodes, op_node)
                         end
                     end
-                    mv("Knitro_solution.csv", joinpath("BandB_runs", "BEST_solution_$instance.csv"), force=true)
+                    mv("knitro_solution.csv", joinpath("solutions", "BB_solution_$(instance)_$(flag).csv"), force=true)
                 else
                     # log = open(joinpath("BandB_runs",output_file[1:end-3]*"csv"), "a")
                     # write(log, "$nb_explored_nodes ; $(length(node_list)) ; $best_ub ; $(minimum(n.father_lb for n in node_list)) ; $((best_ub-minimum(n.father_lb for n in node_list))/best_ub*100)  ; $(length(open_nodes))  \n")
